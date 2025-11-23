@@ -7,7 +7,6 @@ import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.textfield.TextInputEditText
-import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 
 class ManageModelsActivity : AppCompatActivity() {
@@ -66,10 +65,7 @@ class ManageModelsActivity : AppCompatActivity() {
     private fun showModelDialog(isBoiler: Boolean) {
         val view = layoutInflater.inflate(R.layout.dialog_model, null)
         val editName = view.findViewById<TextInputEditText>(R.id.editName)
-        val editPower = view.findViewById<TextInputEditText>(R.id.editPower) // только мощность
-
-        // Удаляем поля min/max — используем только editPower
-        // Если в dialog_model.xml есть editMinPower/editMaxPower — удалите их
+        val editPower = view.findViewById<TextInputEditText>(R.id.editPower)
 
         val builder = AlertDialog.Builder(this)
         builder.setView(view)
@@ -83,14 +79,17 @@ class ManageModelsActivity : AppCompatActivity() {
                     if (isBoiler) {
                         db.dao().insertBoilerModel(BoilerModel(name, power))
                     } else {
-                        db.dao().insertBurnerModel(BurnerModel(name, minPower , maxPower))
+                        db.dao().insertBurnerModel(BurnerModel(name, power))
                     }
                     loadModels()
                 }
             }
         }
 
-        builder.setNegativeButton("Отмена") { dialog, _ -> dialog.dismiss() }
+        builder.setNegativeButton("Отмена") { dialog, _ ->
+            dialog.dismiss()
+        }
+
         builder.show()
     }
 
