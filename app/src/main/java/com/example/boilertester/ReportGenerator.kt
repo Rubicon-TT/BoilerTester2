@@ -1,4 +1,4 @@
-package com.example.boilertester  // ← ЭТА СТРОКА ДОЛЖНА БЫТЬ В НАЧАЛЕ!
+package com.example.boilertester
 
 import android.content.Context
 import android.graphics.Bitmap
@@ -14,7 +14,7 @@ import java.io.FileOutputStream
 
 object ReportGenerator {
 
-    fun generatePDFReport(context: Context, data: BoilerData): File? {
+    fun generatePDFReport(context: Context,  data: BoilerData): File? {
         return try {
             val fileName = "Отчёт_${data.serialNumber}_${System.currentTimeMillis()}.pdf"
             val directory = context.getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS)
@@ -65,12 +65,14 @@ object ReportGenerator {
                 "CO/CO₂:" to "${data.co} ppm / ${data.co2} %",
                 "O₂/α:" to "${data.o2}% / ${"%.3f".format(data.alpha)}",
                 "tвозд/tдым:" to "${data.tAir}/${data.tFlue} °C",
-                "Разр. топка/за котлом:" to "${data.draftFurnace}/${data.draftAfterBoiler} мм вод.ст."
+                "Разр. топка/за котлом:" to "${data.draftFurnace}/${data.draftAfterBoiler} мм вод.ст.",
+                "Pвозд/Pгаз:" to "${data.pAir}/${data.pGas} мбар",
+                "tгаз:" to "${data.tGas} °C"
             ))
             y = drawSection(canvas, styles, "РЕЗУЛЬТАТЫ ЗАМЕРОВ", y, measurements)
             y += 20f
 
-            // Расчётные параметры — ОТРИСОВКА ЧЕРЕЗ drawSection (БЕЗ ОТДЕЛЬНОЙ ФУНКЦИИ)
+            // Расчётные параметры
             val qk = calculateQkEffective(data)
             val qkGcal = qk * 0.000859845
             val q2 = calculateQ2(data)
@@ -106,7 +108,6 @@ object ReportGenerator {
         }
     }
 
-    // Универсальная функция для отрисовки раздела
     private fun drawSection(
         canvas: Canvas,
         styles: ReportStyles,
@@ -139,7 +140,7 @@ object ReportGenerator {
     }
 
     // === Формулы ===
-    private fun calculateQkEffective(data: BoilerData): Double {
+    private fun calculateQkEffective( data: BoilerData): Double {
         return when {
             data.boilerType == "water" && data.waterFlow > 0 -> {
                 val G = data.waterFlow * 1000.0 / 3600.0
@@ -153,7 +154,7 @@ object ReportGenerator {
         }
     }
 
-    private fun calculateQkFromGas(data: BoilerData): Double {
+    private fun calculateQkFromGas( data: BoilerData): Double {
         val Bnorm = data.gasFlow * (data.gasPressure / 1013.0) * (273.15 / (273.15 + data.gasTemperature))
         val qnrKJ = data.gasLowerHeat * 4.186
         val q2 = calculateQ2(data)
@@ -163,22 +164,22 @@ object ReportGenerator {
         return Bnorm * qnrKJ * eta / 3600.0
     }
 
-    private fun calculateQ2(data: BoilerData): Double = 0.025 * data.alpha * (data.tFlue - data.tAir)
+    private fun calculateQ2( data: BoilerData): Double = 0.025 * data.alpha * (data.tFlue - data.tAir)
 
-    private fun calculateQ3(data: BoilerData): Double {
+    private fun calculateQ3( data: BoilerData): Double {
         val coPercent = data.co / 10000.0
         val co2Percent = data.co2
         return if (coPercent > 0 && co2Percent > 0) 126.0 * coPercent / (coPercent + co2Percent) else 0.0
     }
 
-    private fun calculateQ5(data: BoilerData): Double = when {
+    private fun calculateQ5( data: BoilerData): Double = when {
         data.power <= 300 -> 3.0
         data.power <= 1000 -> 2.0
         data.power <= 4000 -> 1.5
         else -> 1.0
     }
 
-    private fun calculateBg(data: BoilerData, qk: Double): Double {
+    private fun calculateBg( data: BoilerData, qk: Double): Double {
         val qnrKJ = data.gasLowerHeat * 4.186
         val q2 = calculateQ2(data)
         val q3 = calculateQ3(data)
