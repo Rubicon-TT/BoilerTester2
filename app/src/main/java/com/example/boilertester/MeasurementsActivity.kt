@@ -10,25 +10,21 @@ import androidx.core.content.FileProvider
 import com.google.android.material.textfield.TextInputEditText
 import com.google.android.material.textfield.TextInputLayout
 import java.io.File
-import android.Manifest
-import android.content.pm.PackageManager
-import androidx.core.app.ActivityCompat
-import androidx.core.content.ContextCompat
 
 class MeasurementsActivity : AppCompatActivity() {
 
     private lateinit var container: LinearLayout
     private lateinit var btnReport: Button
 
+    // Поля ввода замеров
     private var editTIn: TextInputEditText? = null
     private var editTOut: TextInputEditText? = null
     private var editWaterFlow: TextInputEditText? = null
     private var editSteamP: TextInputEditText? = null
     private var editSteamFlow: TextInputEditText? = null
-
     private var editCO: TextInputEditText? = null
-    private var editO2: TextInputEditText? = null
     private var editCO2: TextInputEditText? = null
+    private var editO2: TextInputEditText? = null
     private var editNO: TextInputEditText? = null
     private var editAlpha: TextInputEditText? = null
     private var editTAir: TextInputEditText? = null
@@ -42,8 +38,8 @@ class MeasurementsActivity : AppCompatActivity() {
     private var editPressureOut: TextInputEditText? = null
     private var editDraftFurnace: TextInputEditText? = null
     private var editDraftAfterBoiler: TextInputEditText? = null
-    private var editGasHeat: TextInputEditText? = null
 
+    // Данные, переданные из MainActivity
     private var boilerType = "water"
     private var serial = ""
     private var model = ""
@@ -51,11 +47,15 @@ class MeasurementsActivity : AppCompatActivity() {
     private var burner = ""
     private var objectName = ""
     private var address = ""
+    private var gasHeat = 8100.0
+    private var gasPressure = 1013.0
+    private var gasTemperature = 0.0
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_measurements)
 
+        // Получаем данные из Intent
         boilerType = intent.getStringExtra("boilerType") ?: "water"
         serial = intent.getStringExtra("serial") ?: ""
         model = intent.getStringExtra("model") ?: ""
@@ -63,6 +63,9 @@ class MeasurementsActivity : AppCompatActivity() {
         burner = intent.getStringExtra("burner") ?: ""
         objectName = intent.getStringExtra("object") ?: ""
         address = intent.getStringExtra("address") ?: ""
+        gasHeat = intent.getDoubleExtra("gasHeat", 8100.0)
+        gasPressure = intent.getDoubleExtra("gasPressure", 1013.0)
+        gasTemperature = intent.getDoubleExtra("gasTemperature", 0.0)
 
         container = findViewById(R.id.container)
         createUI()
@@ -82,12 +85,10 @@ class MeasurementsActivity : AppCompatActivity() {
             editSteamFlow = addEditText("Расход пара (т/ч)")
         }
 
-        // Разрежение
-        editDraftFurnace = addEditText("Разрежение в топке (мм вод.ст.)")
-        editDraftAfterBoiler = addEditText("Разрежение за котлом (мм вод.ст.)")
+        // Общие замеры
         editCO = addEditText("CO (ppm)")
-        editO2 = addEditText("O₂ (%)")
         editCO2 = addEditText("CO₂ (%)")
+        editO2 = addEditText("O₂ (%)")
         editNO = addEditText("NO (ppm)")
         editAlpha = addEditText("Коэффициент избытка воздуха (α)")
         editTAir = addEditText("Температура воздуха (°C)")
@@ -97,10 +98,8 @@ class MeasurementsActivity : AppCompatActivity() {
         editGasFlow = addEditText("Расход газа (м³/ч)")
         editPGas = addEditText("Давление газа (мбар)")
         editTGas = addEditText("Температура газа (°C)")
-
-// Теплота сгорания
-        editGasHeat = addEditText("Низшая теплота сгорания (ккал/м³)")
-        editGasHeat?.setText("8100")
+        editDraftFurnace = addEditText("Разрежение в топке (мм вод.ст.)")
+        editDraftAfterBoiler = addEditText("Разрежение за котлом (мм вод.ст.)")
 
         btnReport = Button(this).apply {
             text = "Сформировать отчёт"
@@ -122,25 +121,16 @@ class MeasurementsActivity : AppCompatActivity() {
         return editText
     }
 
-
     private fun generateReport() {
-        val gasHeat = intent.getDoubleExtra("gasHeat", 8100.0)
-        val gasPressure = intent.getDoubleExtra("gasPressure", 1013.0)
-        val gasTemperature = intent.getDoubleExtra("gasTemperature", 0.0)
+        // Считываем значения
         val tIn = editTIn?.text.toString().toDoubleOrNull() ?: 0.0
         val tOut = editTOut?.text.toString().toDoubleOrNull() ?: 0.0
         val waterFlow = editWaterFlow?.text.toString().toDoubleOrNull() ?: 0.0
-
-        val pressureIn = editPressureIn?.text.toString().toDoubleOrNull() ?: 0.0
-        val pressureOut = editPressureOut?.text.toString().toDoubleOrNull() ?: 0.0
-        val draftFurnace = editDraftFurnace?.text.toString().toDoubleOrNull() ?: 0.0
-        val draftAfterBoiler = editDraftAfterBoiler?.text.toString().toDoubleOrNull() ?: 0.0
         val steamP = editSteamP?.text.toString().toDoubleOrNull() ?: 0.0
         val steamFlow = editSteamFlow?.text.toString().toDoubleOrNull() ?: 0.0
-
         val co = editCO?.text.toString().toDoubleOrNull() ?: 0.0
-        val o2 = editO2?.text.toString().toDoubleOrNull() ?: 0.0
         val co2 = editCO2?.text.toString().toDoubleOrNull() ?: 0.0
+        val o2 = editO2?.text.toString().toDoubleOrNull() ?: 0.0
         val no = editNO?.text.toString().toDoubleOrNull() ?: 0.0
         val alphaStr = editAlpha?.text.toString().trim()
         val alpha = if (alphaStr.isNotEmpty()) {
@@ -155,7 +145,12 @@ class MeasurementsActivity : AppCompatActivity() {
         val gasFlow = editGasFlow?.text.toString().toDoubleOrNull() ?: 0.0
         val pGas = editPGas?.text.toString().toDoubleOrNull() ?: 0.0
         val tGas = editTGas?.text.toString().toDoubleOrNull() ?: 0.0
+        val pressureIn = editPressureIn?.text.toString().toDoubleOrNull() ?: 0.0
+        val pressureOut = editPressureOut?.text.toString().toDoubleOrNull() ?: 0.0
+        val draftFurnace = editDraftFurnace?.text.toString().toDoubleOrNull() ?: 0.0
+        val draftAfterBoiler = editDraftAfterBoiler?.text.toString().toDoubleOrNull() ?: 0.0
 
+        // Создаём объект данных
         val data = BoilerData(
             boilerType = boilerType,
             serialNumber = serial,
@@ -167,15 +162,11 @@ class MeasurementsActivity : AppCompatActivity() {
             tIn = tIn,
             tOut = tOut,
             waterFlow = waterFlow,
-            pressureIn = pressureIn,
-            pressureOut = pressureOut,
-            draftFurnace = draftFurnace,
-            draftAfterBoiler = draftAfterBoiler,
             steamPressure = steamP,
             steamFlow = steamFlow,
             co = co,
-            o2 = o2,
             co2 = co2,
+            o2 = o2,
             no = no,
             alpha = alpha,
             tAir = tAir,
@@ -185,6 +176,10 @@ class MeasurementsActivity : AppCompatActivity() {
             gasFlow = gasFlow,
             pGas = pGas,
             tGas = tGas,
+            pressureIn = pressureIn,
+            pressureOut = pressureOut,
+            draftFurnace = draftFurnace,
+            draftAfterBoiler = draftAfterBoiler,
             gasLowerHeat = gasHeat,
             gasPressure = gasPressure,
             gasTemperature = gasTemperature
@@ -212,18 +207,13 @@ class MeasurementsActivity : AppCompatActivity() {
                 file
             )
             val intent = Intent(Intent.ACTION_VIEW).apply {
-                setDataAndType(uri, "text/csv")
+                setDataAndType(uri, "application/pdf")
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
             }
             if (intent.resolveActivity(packageManager) != null) {
                 startActivity(intent)
             } else {
-                val shareIntent = Intent(Intent.ACTION_SEND).apply {
-                    type = "text/csv"
-                    putExtra(Intent.EXTRA_STREAM, uri)
-                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                }
-                startActivity(Intent.createChooser(shareIntent, "Отправить отчёт"))
+                Toast.makeText(this, "Установите приложение для просмотра PDF", Toast.LENGTH_SHORT).show()
             }
         } catch (e: Exception) {
             Toast.makeText(this, "Не удалось открыть файл", Toast.LENGTH_SHORT).show()
