@@ -1,7 +1,7 @@
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
-    id("kotlin-kapt")
+    id("com.google.devtools.ksp") // ← вместо id("kotlin-kapt")
 }
 
 android {
@@ -48,7 +48,7 @@ dependencies {
     // Room
     implementation("androidx.room:room-runtime:2.6.1")
     implementation("androidx.room:room-ktx:2.6.1")
-    kapt("androidx.room:room-compiler:2.6.1")
+    ksp("androidx.room:room-compiler:2.6.1") // ← вместо kapt
 
     // Coroutines и Lifecycle (единые версии)
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")
