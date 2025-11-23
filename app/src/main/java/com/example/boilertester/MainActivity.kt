@@ -7,18 +7,14 @@ import android.widget.*
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import com.google.android.material.textfield.TextInputEditText
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 
 class MainActivity : AppCompatActivity() {
 
     private lateinit var db: AppDatabase
-
-    // Для сохранённых объектов
     private lateinit var savedSetupsList: MutableList<BoilerSetup>
     private lateinit var spinnerSavedAdapter: ArrayAdapter<String>
-
-    // Для моделей котлов и горелок
     private lateinit var boilerModelAdapter: ArrayAdapter<String>
     private lateinit var burnerModelAdapter: ArrayAdapter<String>
     private var boilerModels: List<BoilerModel> = emptyList()
@@ -30,26 +26,23 @@ class MainActivity : AppCompatActivity() {
 
         db = AppDatabase.getDatabase(this)
 
-        // Инициализация списков
         savedSetupsList = mutableListOf()
         spinnerSavedAdapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, mutableListOf())
-        spinnerSavedAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
-
         boilerModelAdapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, mutableListOf())
-        boilerModelAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
         burnerModelAdapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, mutableListOf())
+
+        spinnerSavedAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+        boilerModelAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
         burnerModelAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
 
-        // Привязка адаптеров
         findViewById<Spinner>(R.id.spinnerSavedSetups).adapter = spinnerSavedAdapter
         findViewById<Spinner>(R.id.spinnerBoilerModel).adapter = boilerModelAdapter
         findViewById<Spinner>(R.id.spinnerBurnerModel).adapter = burnerModelAdapter
 
-        // Загрузка данных
         loadSavedSetups()
         loadModels()
+        initStartModels()
 
-        // Обработчики
         findViewById<Spinner>(R.id.spinnerSavedSetups).onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
             override fun onItemSelected(parent: AdapterView<*>, view: View?, position: Int, id: Long) {
                 if (position == 0) return
@@ -72,6 +65,24 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun initStartModels() {
+        lifecycleScope.launch {
+            if (db.dao().getBoilerModelCount() == 0) {
+                db.dao().insertBoilerModel(BoilerModel("Arcus Ignis", 1400.0))
+                db.dao().insertBoilerModel(BoilerModel("Titan Prom 200", 2000.0))
+                db.dao().insertBoilerModel(BoilerModel("Titan Prom", 1000.0))
+                db.dao().insertBoilerModel(BoilerModel("Термотехник-ТТ", 800.0))
+                db.dao().insertBoilerModel(BoilerModel("Rossen-RSA", 1200.0))
+            }
+            if (db.dao().getBurnerModelCount() == 0) {
+                db.dao().insertBurnerModel(BurnerModel("FBR GAS P", 1500.0))
+                db.dao().insertBurnerModel(BurnerModel("Terminator", 1000.0))
+                db.dao().insertBurnerModel(BurnerModel("Garant", 800.0))
+            }
+            loadModels()
+        }
+    }
+
     private fun loadSavedSetups() {
         lifecycleScope.launch {
             val setups = db.dao().getAllSetups()
@@ -89,14 +100,12 @@ class MainActivity : AppCompatActivity() {
 
     private fun loadModels() {
         lifecycleScope.launch {
-            // Загружаем котлы
             boilerModels = db.dao().getAllBoilerModels()
             boilerModelAdapter.clear()
             boilerModelAdapter.add("Выберите модель котла")
             boilerModelAdapter.addAll(boilerModels.map { it.name })
             boilerModelAdapter.notifyDataSetChanged()
 
-            // Загружаем горелки
             burnerModels = db.dao().getAllBurnerModels()
             burnerModelAdapter.clear()
             burnerModelAdapter.add("Выберите модель горелки")
@@ -107,25 +116,15 @@ class MainActivity : AppCompatActivity() {
 
     private fun fillForm(setup: BoilerSetup) {
         findViewById<TextInputEditText>(R.id.editSerialNumber).setText(setup.serialNumber)
-        findViewById<TextInputEditText>(R.id.editPower).setText(setup.power.toString())
         findViewById<TextInputEditText>(R.id.editObjectName).setText(setup.objectName)
         findViewById<TextInputEditText>(R.id.editAddress).setText(setup.address)
+        findViewById<TextInputEditText>(R.id.editGasHeat).setText(setup.power.toString()) // временно
 
-        // Выбор модели котла
         val boilerIndex = boilerModels.indexOfFirst { it.name == setup.boilerModelName }
-        if (boilerIndex >= 0) {
-            findViewById<Spinner>(R.id.spinnerBoilerModel).setSelection(boilerIndex + 1)
-        } else {
-            findViewById<Spinner>(R.id.spinnerBoilerModel).setSelection(0)
-        }
-
-        // Выбор модели горелки
         val burnerIndex = burnerModels.indexOfFirst { it.name == setup.burnerModelName }
-        if (burnerIndex >= 0) {
-            findViewById<Spinner>(R.id.spinnerBurnerModel).setSelection(burnerIndex + 1)
-        } else {
-            findViewById<Spinner>(R.id.spinnerBurnerModel).setSelection(0)
-        }
+
+        if (boilerIndex >= 0) findViewById<Spinner>(R.id.spinnerBoilerModel).setSelection(boilerIndex + 1)
+        if (burnerIndex >= 0) findViewById<Spinner>(R.id.spinnerBurnerModel).setSelection(burnerIndex + 1)
     }
 
     private fun saveCurrentSetup() {
@@ -136,36 +135,27 @@ class MainActivity : AppCompatActivity() {
             return
         }
 
-        val boilerSpinner = findViewById<Spinner>(R.id.spinnerBoilerModel)
-        val burnerSpinner = findViewById<Spinner>(R.id.spinnerBurnerModel)
+        val boilerPos = findViewById<Spinner>(R.id.spinnerBoilerModel).selectedItemPosition
+        val burnerPos = findViewById<Spinner>(R.id.spinnerBurnerModel).selectedItemPosition
 
-        val boilerModelName = if (boilerSpinner.selectedItemPosition > 0) {
-            boilerModels[boilerSpinner.selectedItemPosition - 1].name
-        } else {
-            ""
-        }
+        val boilerModel = if (boilerPos > 0) boilerModels[boilerPos - 1].name else ""
+        val burnerModel = if (burnerPos > 0) burnerModels[burnerPos - 1].name else ""
 
-        val burnerModelName = if (burnerSpinner.selectedItemPosition > 0) {
-            burnerModels[burnerSpinner.selectedItemPosition - 1].name
-        } else {
-            ""
-        }
-
-        if (boilerModelName.isEmpty() || burnerModelName.isEmpty()) {
+        if (boilerModel.isEmpty() || burnerModel.isEmpty()) {
             Toast.makeText(this, "Выберите модели котла и горелки", Toast.LENGTH_SHORT).show()
             return
         }
 
-        val power = findViewById<TextInputEditText>(R.id.editPower).text.toString().toDoubleOrNull() ?: 0.0
+        val boilerPower = if (boilerPos > 0) boilerModels[boilerPos - 1].power else 0.0
         val address = findViewById<TextInputEditText>(R.id.editAddress).text.toString().trim()
 
         lifecycleScope.launch {
             db.dao().insertSetup(
                 BoilerSetup(
                     serialNumber = serial,
-                    boilerModelName = boilerModelName,
-                    burnerModelName = burnerModelName,
-                    power = power,
+                    boilerModelName = boilerModel,
+                    burnerModelName = burnerModel,
+                    power = boilerPower,
                     objectName = objectName,
                     address = address
                 )
@@ -183,45 +173,35 @@ class MainActivity : AppCompatActivity() {
             return
         }
 
-        val boilerSpinner = findViewById<Spinner>(R.id.spinnerBoilerModel)
-        val burnerSpinner = findViewById<Spinner>(R.id.spinnerBurnerModel)
+        val boilerPos = findViewById<Spinner>(R.id.spinnerBoilerModel).selectedItemPosition
+        val burnerPos = findViewById<Spinner>(R.id.spinnerBurnerModel).selectedItemPosition
 
-        val boilerModelName = if (boilerSpinner.selectedItemPosition > 0) {
-            boilerModels[boilerSpinner.selectedItemPosition - 1].name
-        } else {
-            ""
-        }
+        val boilerModel = if (boilerPos > 0) boilerModels[boilerPos - 1].name else ""
+        val burnerModel = if (burnerPos > 0) burnerModels[burnerPos - 1].name else ""
 
-        val burnerModelName = if (burnerSpinner.selectedItemPosition > 0) {
-            burnerModels[burnerSpinner.selectedItemPosition - 1].name
-        } else {
-            ""
-        }
-
-        if (boilerModelName.isEmpty() || burnerModelName.isEmpty()) {
+        if (boilerModel.isEmpty() || burnerModel.isEmpty()) {
             Toast.makeText(this, "Выберите модели котла и горелки", Toast.LENGTH_SHORT).show()
             return
         }
 
-        val power = findViewById<TextInputEditText>(R.id.editPower).text.toString().toDoubleOrNull() ?: 0.0
+        val boilerPower = if (boilerPos > 0) boilerModels[boilerPos - 1].power else 0.0
         val address = findViewById<TextInputEditText>(R.id.editAddress).text.toString().trim()
-        val isWater = findViewById<RadioButton>(R.id.radioWater).isChecked
-        val gasHeatStr = findViewById<TextInputEditText>(R.id.editGasHeat).text.toString().trim()
         val gasHeat = findViewById<TextInputEditText>(R.id.editGasHeat).text.toString().toDoubleOrNull() ?: 8100.0
         val gasPressure = findViewById<TextInputEditText>(R.id.editGasPressure).text.toString().toDoubleOrNull() ?: 1013.0
         val gasTemperature = findViewById<TextInputEditText>(R.id.editGasTemperature).text.toString().toDoubleOrNull() ?: 0.0
+        val isWater = findViewById<RadioButton>(R.id.radioWater).isChecked
 
         Intent(this, MeasurementsActivity::class.java).apply {
             putExtra("boilerType", if (isWater) "water" else "steam")
             putExtra("serial", serial)
-            putExtra("model", boilerModelName)
-            putExtra("power", power)
-            putExtra("burner", burnerModelName)
+            putExtra("model", boilerModel)
+            putExtra("power", boilerPower)
+            putExtra("burner", burnerModel)
             putExtra("object", objectName)
             putExtra("address", address)
-            intent.putExtra("gasHeat", gasHeat)
-            intent.putExtra("gasPressure", gasPressure)
-            intent.putExtra("gasTemperature", gasTemperature)
+            putExtra("gasHeat", gasHeat)
+            putExtra("gasPressure", gasPressure)
+            putExtra("gasTemperature", gasTemperature)
             startActivity(this)
         }
     }
