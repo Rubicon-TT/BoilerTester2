@@ -38,10 +38,14 @@ class ModelAdapter(
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         if (isBoilerList) {
             val model = boilerList[position]
-            holder.bind(model.name, model.power) { onDeleteClick(model, true) }
+            holder.bind(model.name, model.power) {
+                onDeleteClick(model, true)
+            }
         } else {
             val model = burnerList[position]
-            holder.bind(model.name, model.power) { onDeleteClick(model, false) }
+            holder.bind(model.name, model.power) {
+                onDeleteClick(model, false)
+            }
         }
     }
 
