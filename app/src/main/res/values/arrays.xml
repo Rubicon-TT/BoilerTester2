@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string-array name="boiler_models">
+        <item>Arcus Ignis</item>
+        <item>Titan Prom 200</item>
+        <item>Titan Prom</item>
+        <item>Термотехник-ТТ</item>
+        <item>Rossen-RSA</item>
+    </string-array>
+
+    <string-array name="burner_models">
+        <item>FBR GAS P</item>
+        <item>Terminator</item>
+        <item>Garant</item>
+    </string-array>
+</resources>
